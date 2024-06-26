@@ -1,0 +1,64 @@
+name: Upload build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    container: node:latest
+
+    permissions:
+      id-token: write
+      contents: read
+      
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+
+      - name: 🎈 Get npm store directory
+        id: get-npm-cache-dir
+        working-directory: ./abstraxion-settings
+        run: |
+          echo "CACHE_DIR=$(npm config get cache)" >> $GITHUB_ENV
+
+      - name: 🔆 Cache npm modules
+        uses: actions/cache@main
+        id: npm-cache
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: 🧩 Install Dependencies
+        id: install-dependencies
+        working-directory: ./abstraxion-settings
+        run: npm install
+
+      - name: 🏗️ Build
+        id: build-the-repo
+        working-directory: ./abstraxion-settings
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::385156030167:role/burnt-use1testnet-oidc-github
+          aws-region: us-east-1
+
+      - name: Set upload name
+        id: set-upload-name
+        run: |
+          echo "BRANCH_SLUG=${GITHUB_REF#refs/heads/}" | sed -e 's/\//-/g' >> $GITHUB_ENV
+
+      - name: 📦 Deploy to S3
+        id: deploy-to-s3
+        uses: osiegmar/s3-publisher-action@v1
+        with:
+          dir: ./abstraxion-settings/dist
+          bucket: burnt-use1testnet-staging 
+          prefix: ${{ github.event.repository.name }}/${{ env.BRANCH_SLUG }}/
+
