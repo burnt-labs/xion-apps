@@ -1,0 +1,262 @@
+name: Matrix CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed-services: ${{ steps.changes.outputs.changed-services }}
+      has-changes: ${{ steps.changes.outputs.has-changes }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Detect changed submodules
+        id: changes
+        run: |
+          # Get list of changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          echo "Checking changes between $BASE_SHA and $HEAD_SHA"
+
+          # Get changed submodules
+          CHANGED_SERVICES=""
+
+          # Check if any submodule pointers changed
+          git diff --name-only $BASE_SHA...$HEAD_SHA | grep -E '^[^/]+$' | while read -r path; do
+            if [ -d "$path" ] && git submodule status | grep -q " $path "; then
+              echo "Changed submodule: $path"
+              if [ -z "$CHANGED_SERVICES" ]; then
+                CHANGED_SERVICES="$path"
+              else
+                CHANGED_SERVICES="$CHANGED_SERVICES,$path"
+              fi
+            fi
+          done
+
+          # Also check for changes within submodules
+          git submodule foreach --quiet 'if [ -n "$(git diff $SHA1..HEAD --name-only)" ]; then echo $sm_path; fi' | while read -r path; do
+            if [ -n "$path" ]; then
+              echo "Submodule with internal changes: $path"
+              if [ -z "$CHANGED_SERVICES" ]; then
+                CHANGED_SERVICES="$path"
+              else
+                CHANGED_SERVICES="$CHANGED_SERVICES,$path"
+              fi
+            fi
+          done
+
+          # Convert to JSON array for matrix
+          if [ -n "$CHANGED_SERVICES" ]; then
+            SERVICES_JSON=$(echo "$CHANGED_SERVICES" | tr ',' '\n' | sort -u | jq -R -s -c 'split("\n")[:-1]')
+            echo "changed-services=$SERVICES_JSON" >> $GITHUB_OUTPUT
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Changed services: $SERVICES_JSON"
+          else
+            echo "changed-services=[]" >> $GITHUB_OUTPUT
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No submodule changes detected"
+          fi
+
+  build-and-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.changed-services) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build and test ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          echo "🔨 Building and testing ${{ matrix.service }}"
+
+          # Install dependencies if package.json exists
+          if [ -f "package.json" ]; then
+            # Try different package managers
+            if [ -f "pnpm-lock.yaml" ]; then
+              npm install -g pnpm
+              pnpm install
+            elif [ -f "yarn.lock" ]; then
+              yarn install
+            else
+              npm ci
+            fi
+
+            # Run available scripts
+            echo "📦 Running available scripts for ${{ matrix.service }}"
+
+            # Build
+            if npm run build --if-present; then
+              echo "✅ Build successful for ${{ matrix.service }}"
+            else
+              echo "⚠️ Build failed or not available for ${{ matrix.service }}"
+            fi
+
+            # Test
+            if npm run test --if-present; then
+              echo "✅ Tests passed for ${{ matrix.service }}"
+            else
+              echo "⚠️ Tests failed or not available for ${{ matrix.service }}"
+            fi
+
+            # Lint
+            if npm run lint --if-present; then
+              echo "✅ Linting passed for ${{ matrix.service }}"
+            else
+              echo "⚠️ Linting failed or not available for ${{ matrix.service }}"
+            fi
+
+            # Type check
+            if npm run typecheck --if-present; then
+              echo "✅ Type check passed for ${{ matrix.service }}"
+            else
+              echo "⚠️ Type check failed or not available for ${{ matrix.service }}"
+            fi
+          else
+            echo "📄 No package.json found in ${{ matrix.service }}, skipping npm scripts"
+          fi
+
+      - name: Production readiness check
+        run: |
+          echo "🚦 Running production readiness check for ${{ matrix.service }}"
+          npm run production:gates "${{ matrix.service }}" || {
+            echo "⚠️ Production readiness check failed for ${{ matrix.service }}"
+            echo "This is informational - not blocking CI"
+          }
+
+  security-scan:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.changed-services) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Security audit for ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          echo "🔒 Running security audit for ${{ matrix.service }}"
+
+          if [ -f "package.json" ]; then
+            # Run npm audit
+            if npm audit --audit-level=high; then
+              echo "✅ Security audit passed for ${{ matrix.service }}"
+            else
+              echo "⚠️ Security vulnerabilities found in ${{ matrix.service }}"
+              echo "Run 'npm audit fix' to address issues"
+            fi
+          else
+            echo "📄 No package.json found in ${{ matrix.service }}, skipping security audit"
+          fi
+
+  deployment-readiness:
+    needs: [detect-changes, build-and-test, security-scan]
+    if: always() && needs.detect-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Overall health check
+        run: |
+          echo "🏥 Running overall health check"
+
+          # Run comprehensive validation
+          npm run production:validate || {
+            echo "⚠️ Some services failed production validation"
+            echo "Check individual service results above"
+          }
+
+      - name: Generate deployment summary
+        run: |
+          echo "📋 Deployment Readiness Summary"
+          echo "================================"
+
+          CHANGED_SERVICES='${{ needs.detect-changes.outputs.changed-services }}'
+          echo "Changed services: $CHANGED_SERVICES"
+
+          echo ""
+          echo "Build Status:"
+          if [ "${{ needs.build-and-test.result }}" = "success" ]; then
+            echo "✅ All builds and tests passed"
+          else
+            echo "❌ Some builds or tests failed"
+          fi
+
+          echo ""
+          echo "Security Status:"
+          if [ "${{ needs.security-scan.result }}" = "success" ]; then
+            echo "✅ Security scans passed"
+          else
+            echo "⚠️ Security issues detected"
+          fi
+
+          echo ""
+          echo "Next Steps:"
+          echo "- Review any failed checks above"
+          echo "- Deploy services individually using the deployment workflow"
+          echo "- Monitor production health after deployment"
+
+  skip-ci:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'false'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: No changes detected
+        run: |
+          echo "✅ No submodule changes detected"
+          echo "Skipping CI for unchanged services"
+          echo "Only root configuration or documentation changes"

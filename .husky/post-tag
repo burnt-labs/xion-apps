@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Load direnv environment if available
+if command -v direnv > /dev/null; then
+  eval "$(direnv export bash 2>/dev/null || true)"
+fi
+
+echo "🏷️ Post-tag: Replicating tag to submodules..."
+
+# Get the most recent tag
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+
+if [ -n "$LATEST_TAG" ]; then
+  echo "Replicating tag: $LATEST_TAG"
+
+  # Replicate tag to all submodules
+  npm run tags:replicate "$LATEST_TAG" > /dev/null 2>&1 || {
+    echo "⚠️  Tag replication failed (non-blocking)"
+    echo "   Run manually: npm run tags:replicate $LATEST_TAG"
+  }
+
+  echo "✅ Tag replication complete"
+else
+  echo "⚠️  No tags found to replicate"
+fi

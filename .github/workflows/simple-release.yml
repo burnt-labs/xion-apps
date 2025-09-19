@@ -1,0 +1,214 @@
+name: Simple Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      custom_version:
+        description: 'Custom version (only if release_type is custom)'
+        required: false
+        type: string
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ inputs.release_type }}" = "custom" ]; then
+            NEW_VERSION="${{ inputs.custom_version }}"
+          else
+            # Get current version from git tags
+            CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            echo "Current version: $CURRENT_VERSION"
+
+            # Remove 'v' prefix if present
+            CURRENT_VERSION=${CURRENT_VERSION#v}
+
+            # Split version into parts
+            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+            MAJOR=${VERSION_PARTS[0]:-0}
+            MINOR=${VERSION_PARTS[1]:-0}
+            PATCH=${VERSION_PARTS[2]:-0}
+
+            case "${{ inputs.release_type }}" in
+              "patch")
+                PATCH=$((PATCH + 1))
+                ;;
+              "minor")
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              "major")
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+            esac
+
+            NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
+          fi
+
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create annotated tag
+          git tag -a "$VERSION" -m "Release $VERSION
+
+          Created via GitHub Actions workflow
+          Release type: ${{ inputs.release_type }}
+          Workflow: ${{ github.workflow }}
+          Run: ${{ github.run_number }}"
+
+          # Push tag
+          git push origin "$VERSION"
+
+          echo "✅ Created and pushed tag: $VERSION"
+
+      - name: Replicate tag to submodules
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "🔄 Replicating tag $VERSION to all submodules"
+
+          # Use our tag replication script
+          npm run tags:replicate "$VERSION"
+
+          echo "✅ Tag replicated to all submodules"
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Get previous tag for comparison
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          echo "Generating release notes for $VERSION"
+
+          # Create release notes
+          cat > release-notes.md << EOF
+          # Release $VERSION
+
+          ## 🚀 What's Changed
+
+          EOF
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "Comparing with previous tag: $PREVIOUS_TAG"
+
+            # Get overall changes
+            echo "### Overall Changes" >> release-notes.md
+            git log --pretty=format:"- %s (%an)" $PREVIOUS_TAG..HEAD --no-merges >> release-notes.md || true
+            echo "" >> release-notes.md
+
+            # Get submodule changes
+            echo "### Submodule Updates" >> release-notes.md
+
+            git submodule foreach --quiet '
+              if [ -n "$(git log --oneline $sha1..HEAD 2>/dev/null)" ]; then
+                echo "#### $name"
+                git log --pretty=format:"- %s (%an)" $sha1..HEAD --no-merges 2>/dev/null | head -10 || true
+                echo ""
+              fi
+            ' >> release-notes.md
+
+          else
+            echo "- Initial release" >> release-notes.md
+          fi
+
+          # Add metadata
+          cat >> release-notes.md << EOF
+
+          ## 📋 Release Information
+
+          - **Release Type**: ${{ inputs.release_type }}
+          - **Created**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Workflow**: ${{ github.workflow }}
+          - **Run**: ${{ github.run_number }}
+
+          ## 🏗️ Architecture
+
+          This release includes updates to our production-ready submodule architecture:
+
+          - **Independent Deployment**: Each service deploys separately to Cloudflare Workers
+          - **Quality Gates**: Production validation before deployment
+          - **Health Monitoring**: Continuous service health tracking
+          - **Rollback Capability**: Safe deployment with automatic rollback
+
+          EOF
+
+          echo "release-notes-file=release-notes.md" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh release create "$VERSION" \
+            --title "Release $VERSION" \
+            --notes-file "${{ steps.release-notes.outputs.release-notes-file }}" \
+            --latest
+
+          echo "✅ Created GitHub release: $VERSION"
+
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post-release validation
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "🔍 Running post-release validation"
+
+          # Verify tag exists
+          if git tag -l | grep -q "^$VERSION$"; then
+            echo "✅ Tag $VERSION exists"
+          else
+            echo "❌ Tag $VERSION not found"
+            exit 1
+          fi
+
+          # Verify GitHub release exists
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "✅ GitHub release $VERSION exists"
+          else
+            echo "❌ GitHub release $VERSION not found"
+            exit 1
+          fi
+
+          echo "🎉 Release $VERSION completed successfully"
+
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

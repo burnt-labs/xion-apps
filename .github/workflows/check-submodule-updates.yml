@@ -1,0 +1,236 @@
+name: Check Submodule Updates
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force update check even if no changes'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      has-updates: ${{ steps.check.outputs.has-updates }}
+      updates-summary: ${{ steps.check.outputs.updates-summary }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for submodule updates
+        id: check
+        run: |
+          echo "🔍 Checking for submodule updates"
+
+          HAS_UPDATES=false
+          UPDATES_SUMMARY=""
+
+          # Function to check single submodule
+          check_submodule() {
+            local path=$1
+            local name=$(basename "$path")
+
+            echo "Checking $name..."
+
+            cd "$path"
+
+            # Fetch latest changes
+            git fetch origin
+
+            # Get current commit and latest commit
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            LATEST_COMMIT=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master 2>/dev/null)
+
+            if [ "$CURRENT_COMMIT" != "$LATEST_COMMIT" ]; then
+              echo "📦 Updates available for $name"
+
+              # Get commit count and summary
+              COMMIT_COUNT=$(git rev-list --count $CURRENT_COMMIT..$LATEST_COMMIT)
+              LATEST_MESSAGE=$(git log -1 --pretty=format:"%s" $LATEST_COMMIT)
+
+              UPDATE_INFO="- **$name**: $COMMIT_COUNT new commits. Latest: \"$LATEST_MESSAGE\""
+
+              if [ -z "$UPDATES_SUMMARY" ]; then
+                UPDATES_SUMMARY="$UPDATE_INFO"
+              else
+                UPDATES_SUMMARY="$UPDATES_SUMMARY\n$UPDATE_INFO"
+              fi
+
+              HAS_UPDATES=true
+            else
+              echo "✅ $name is up to date"
+            fi
+
+            cd ..
+          }
+
+          # Check all submodules
+          git submodule foreach --quiet 'echo $sm_path' | while read -r submodule_path; do
+            if [ -d "$submodule_path" ]; then
+              check_submodule "$submodule_path"
+            fi
+          done
+
+          echo "has-updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
+          echo "updates-summary<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$UPDATES_SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          if [ "$HAS_UPDATES" = "true" ]; then
+            echo "🎯 Found updates for submodules"
+          else
+            echo "✅ All submodules are up to date"
+          fi
+
+  create-update-pr:
+    needs: check-updates
+    if: needs.check-updates.outputs.has-updates == 'true' || inputs.force_update == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update submodules
+        run: |
+          echo "🔄 Updating submodules to latest versions"
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create update branch
+          BRANCH_NAME="automated-submodule-updates-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+
+          # Update each submodule
+          UPDATED_MODULES=""
+
+          git submodule foreach --quiet 'echo $sm_path' | while read -r submodule_path; do
+            if [ -d "$submodule_path" ]; then
+              echo "Updating $submodule_path..."
+
+              cd "$submodule_path"
+
+              # Get current and latest commits
+              CURRENT_COMMIT=$(git rev-parse HEAD)
+              git checkout main 2>/dev/null || git checkout master 2>/dev/null
+              git pull origin HEAD
+              LATEST_COMMIT=$(git rev-parse HEAD)
+
+              if [ "$CURRENT_COMMIT" != "$LATEST_COMMIT" ]; then
+                echo "📦 Updated $submodule_path"
+                UPDATED_MODULES="$UPDATED_MODULES $submodule_path"
+              fi
+
+              cd ..
+            fi
+          done
+
+          # Commit changes if any
+          if git diff --quiet; then
+            echo "No submodule changes to commit"
+          else
+            git add .
+            git commit -m "chore: update submodules to latest versions
+
+          Automated update of submodules to their latest main/master branch commits.
+
+          ${{ needs.check-updates.outputs.updates-summary }}
+
+          🤖 Generated by automated workflow"
+
+            git push origin "$BRANCH_NAME"
+
+            # Store branch name for PR creation
+            echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          fi
+
+      - name: Create Pull Request
+        if: env.BRANCH_NAME
+        run: |
+          gh pr create \
+            --title "🤖 Automated Submodule Updates $(date +%Y-%m-%d)" \
+            --body "$(cat <<'EOF'
+          ## 🔄 Automated Submodule Updates
+
+          This PR contains automated updates to submodules that have new commits available.
+
+          ### 📦 Updated Submodules
+
+          ${{ needs.check-updates.outputs.updates-summary }}
+
+          ### 🔍 What's Included
+
+          - All submodules updated to their latest main/master branch commits
+          - No breaking changes expected (version updates only)
+          - Automated testing will validate all changes
+
+          ### 🚀 Next Steps
+
+          1. Review the changes in each submodule
+          2. Ensure CI passes for all updated services
+          3. Merge when ready to deploy updates
+
+          ### 🤖 Automation Info
+
+          - **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Workflow**: ${{ github.workflow }}
+          - **Run**: ${{ github.run_number }}
+
+          EOF
+          )" \
+            --head "${{ env.BRANCH_NAME }}" \
+            --base "main"
+
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-completion:
+    needs: [check-updates, create-update-pr]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Summary
+        run: |
+          echo "📋 Submodule Update Check Summary"
+          echo "================================"
+
+          if [ "${{ needs.check-updates.outputs.has-updates }}" = "true" ]; then
+            echo "✅ Found submodule updates"
+            echo "📝 Created pull request with updates"
+          else
+            echo "✅ All submodules are up to date"
+            echo "🎯 No action required"
+          fi
+
+          echo ""
+          echo "🔗 View workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

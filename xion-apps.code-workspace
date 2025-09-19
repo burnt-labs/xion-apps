@@ -1,11 +1,11 @@
 {
   "folders": [
     {
-      "name": "🏠 ROOT",
-      "path": "./"
+      "name": "🏠 Root",
+      "path": "."
     },
     {
-      "name": "📦 account-lookup",
+      "name": "📊 account-lookup",
       "path": "./account-lookup"
     },
     {
@@ -21,11 +21,11 @@
       "path": "./bluecheck"
     },
     {
-      "name": "🔜 coming-soon",
+      "name": "🚧 coming-soon",
       "path": "./coming-soon"
     },
     {
-      "name": "💳 crossmint-frontend",
+      "name": "🛒 crossmint-frontend",
       "path": "./crossmint-frontend"
     },
     {
@@ -33,11 +33,11 @@
       "path": "./crossmint-mobile"
     },
     {
-      "name": "🏗️ dapp-example",
+      "name": "🔗 dapp-example",
       "path": "./dapp-example"
     },
     {
-      "name": "📊 dashboard",
+      "name": "📈 dashboard",
       "path": "./dashboard"
     },
     {
@@ -57,11 +57,11 @@
       "path": "./expo-demo"
     },
     {
-      "name": "🚿 faucet",
+      "name": "🚰 faucet",
       "path": "./faucet"
     },
     {
-      "name": "📈 kaito-dashboard",
+      "name": "🤖 kaito-dashboard",
       "path": "./kaito-dashboard"
     },
     {
@@ -77,7 +77,7 @@
       "path": "./reclaim-demo"
     },
     {
-      "name": "🥩 staking",
+      "name": "💰 staking",
       "path": "./staking"
     },
     {
@@ -85,37 +85,18 @@
       "path": "./voucher-verify-demo"
     },
     {
-      "name": "🌐 xion.js",
+      "name": "📚 xion.js",
       "path": "./xion.js"
     }
   ],
   "settings": {
-    "files.exclude": {
-      "**/node_modules": true,
-      "**/dist": true,
-      "**/.next": true,
-      "**/build": true,
-      "**/.turbo": true,
-      "**/.pnpm-store": true,
-      "**/coverage": true
-    },
-    "search.exclude": {
-      "**/node_modules": true,
-      "**/dist": true,
-      "**/.next": true,
-      "**/build": true,
-      "**/.turbo": true,
-      "**/pnpm-lock.yaml": true,
-      "**/yarn.lock": true,
-      "**/package-lock.json": true
-    },
-    "typescript.tsdk": "node_modules/typescript/lib",
-    "typescript.enablePromptUseWorkspaceTsdk": true,
-    "typescript.suggest.autoImports": true,
     "typescript.preferences.includePackageJsonAutoImports": "auto",
-    "eslint.packageManager": "pnpm",
+    "typescript.suggest.autoImports": true,
+    "typescript.workspaceSymbols.scope": "allOpenProjects",
     "eslint.workingDirectories": [
+      ".",
       "account-lookup",
+      "assets",
       "authz-viewer",
       "bluecheck",
       "coming-soon",
@@ -123,6 +104,7 @@
       "crossmint-mobile",
       "dapp-example",
       "dashboard",
+      "deployed-contract-listings",
       "developer-portal",
       "explorer",
       "expo-demo",
@@ -135,136 +117,99 @@
       "voucher-verify-demo",
       "xion.js"
     ],
-    "npm.packageManager": "pnpm",
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": "explicit",
-      "source.organizeImports": "explicit"
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.next": true,
+      "**/.nuxt": true,
+      "**/coverage": true
     },
-    "git.ignoreLimitWarning": true,
-    "git.autofetch": true,
-    "git.enableSmartCommit": true,
-    "git.confirmSync": false,
-    "gitlens.defaultDateFormat": "YYYY-MM-DD HH:mm",
-    "gitlens.defaultDateShortFormat": "MMM DD",
-    "explorer.fileNesting.enabled": true,
-    "explorer.fileNesting.patterns": {
-      "*.ts": "${capture}.js, ${capture}.d.ts",
-      "*.js": "${capture}.js.map",
-      "package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock, .npmrc",
-      "tsconfig.json": "tsconfig.*.json",
-      ".env": ".env.*",
-      "README.md": "CHANGELOG.md, LICENSE, .gitignore"
-    },
-    "terminal.integrated.cwd": "${workspaceFolder}",
-    "terminal.integrated.defaultProfile.osx": "zsh",
-    "workbench.colorCustomizations": {
-      "tab.activeBorder": "#007acc",
-      "activityBar.activeBackground": "#007acc33"
+    "files.exclude": {
+      "**/.git": true,
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.next": true,
+      "**/.nuxt": true
     }
   },
   "extensions": {
     "recommendations": [
-      "dbaeumer.vscode-eslint",
-      "esbenp.prettier-vscode",
       "ms-vscode.vscode-typescript-next",
-      "eamodio.gitlens",
-      "streetsidesoftware.code-spell-checker",
       "bradlc.vscode-tailwindcss",
-      "formulahendry.auto-rename-tag",
-      "christian-kohler.path-intellisense",
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
       "ms-vscode.vscode-json",
       "redhat.vscode-yaml",
-      "ms-vscode.powershell",
-      "ms-vscode-remote.remote-containers",
+      "ms-vscode.vscode-markdown",
+      "github.vscode-github-actions",
+      "ms-vscode.vscode-github-pull-requests",
       "github.copilot",
-      "github.copilot-chat",
-      "ms-vscode.vscode-github-issue-notebooks",
-      "github.vscode-pull-request-github"
+      "ms-vscode.vscode-workspaces"
     ]
   },
   "tasks": {
     "version": "2.0.0",
     "tasks": [
       {
-        "label": "Install Dependencies",
+        "label": "🔧 Setup Environment",
         "type": "shell",
-        "command": "pnpm install",
+        "command": "npm run setup:env",
         "group": "build",
         "presentation": {
           "echo": true,
           "reveal": "always",
           "focus": false,
           "panel": "shared"
-        },
-        "problemMatcher": []
+        }
       },
       {
-        "label": "Build All",
+        "label": "🏥 Production Health Check",
         "type": "shell",
-        "command": "npm run workspace:build",
-        "group": "build",
-        "presentation": {
-          "echo": true,
-          "reveal": "always",
-          "focus": false,
-          "panel": "shared"
-        },
-        "problemMatcher": ["$tsc"]
-      },
-      {
-        "label": "Update Submodules",
-        "type": "shell",
-        "command": "npm run update",
-        "group": "build",
-        "presentation": {
-          "echo": true,
-          "reveal": "always",
-          "focus": false,
-          "panel": "shared"
-        },
-        "problemMatcher": []
-      },
-      {
-        "label": "Health Check",
-        "type": "shell",
-        "command": "npm run health",
+        "command": "npm run production:health",
         "group": "test",
         "presentation": {
           "echo": true,
           "reveal": "always",
           "focus": false,
           "panel": "shared"
-        },
-        "problemMatcher": []
+        }
       },
       {
-        "label": "Daily Maintenance",
+        "label": "🚦 Quality Gates",
         "type": "shell",
-        "command": "npm run daily",
+        "command": "npm run production:gates",
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "📦 Check Submodule Status",
+        "type": "shell",
+        "command": "npm run submodules:status",
         "group": "build",
         "presentation": {
           "echo": true,
           "reveal": "always",
           "focus": false,
           "panel": "shared"
-        },
-        "problemMatcher": []
-      }
-    ]
-  },
-  "launch": {
-    "version": "0.2.0",
-    "configurations": [
+        }
+      },
       {
-        "name": "Debug Current TypeScript File",
-        "type": "node",
-        "request": "launch",
-        "program": "${file}",
-        "runtimeArgs": ["-r", "ts-node/register"],
-        "env": {
-          "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
+        "label": "🔄 Update All Submodules",
+        "type": "shell",
+        "command": "npm run submodules:update-all",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
         }
       }
     ]

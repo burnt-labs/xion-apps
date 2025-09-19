@@ -1,0 +1,61 @@
+# CODEOWNERS for XION Apps Monorepo
+# Each line is a file pattern followed by one or more owners
+
+# Default owners for all files
+* @burnt-labs/burnt_frontend
+
+# Root configuration and infrastructure
+package.json @burnt-labs/burnt_devops @burnt-labs/burnt_frontend
+package-lock.json @burnt-labs/burnt_devops
+pnpm-workspace.yaml @burnt-labs/burnt_devops
+.github/ @burnt-labs/burnt_devops
+.husky/ @burnt-labs/burnt_devops
+scripts/ @burnt-labs/burnt_devops @burnt-labs/burnt_frontend
+.gitmodules @burnt-labs/burnt_devops
+.envrc @burnt-labs/burnt_devops
+*.code-workspace @burnt-labs/burnt_devops
+
+# Security-sensitive files
+.github/workflows/security-*.yml @burnt-labs/security
+.github/workflows/*security* @burnt-labs/security
+scripts/*security* @burnt-labs/security
+scripts/quality-gates.js @burnt-labs/security @burnt-labs/burnt_devops
+
+# Production deployment workflows
+.github/workflows/submodule-deployment.yml @burnt-labs/burnt_devops @burnt-labs/security
+.github/workflows/matrix-ci.yml @burnt-labs/burnt_devops
+scripts/production/ @burnt-labs/burnt_devops @burnt-labs/security
+
+# Individual service ownership
+account-lookup/ @burnt-labs/burnt_frontend
+assets/ @burnt-labs/burnt_frontend
+authz-viewer/ @burnt-labs/burnt_frontend
+bluecheck/ @burnt-labs/burnt_frontend
+coming-soon/ @burnt-labs/burnt_frontend
+crossmint-frontend/ @burnt-labs/burnt_frontend
+crossmint-mobile/ @burnt-labs/burnt_frontend
+dapp-example/ @burnt-labs/burnt_frontend
+dashboard/ @burnt-labs/burnt_frontend
+deployed-contract-listings/ @burnt-labs/burnt_frontend
+developer-portal/ @burnt-labs/burnt_frontend
+explorer/ @burnt-labs/burnt_frontend
+expo-demo/ @burnt-labs/burnt_frontend
+faucet/ @burnt-labs/burnt_frontend
+kaito-dashboard/ @burnt-labs/burnt_frontend
+mainnet-stats/ @burnt-labs/burnt_frontend
+quickstart-frontend/ @burnt-labs/burnt_frontend
+reclaim-demo/ @burnt-labs/burnt_frontend
+staking/ @burnt-labs/burnt_frontend
+voucher-verify-demo/ @burnt-labs/burnt_frontend
+xion.js/ @burnt-labs/burnt_frontend
+
+# Documentation
+README.md @burnt-labs/burnt_frontend @burnt-labs/burnt_devops
+*.md @burnt-labs/burnt_frontend
+
+# Security patterns that require security team review
+**/wrangler.toml @burnt-labs/security
+**/*.env.example @burnt-labs/security
+**/.env.* @burnt-labs/security
+**/Dockerfile @burnt-labs/security
+**/docker-compose.yml @burnt-labs/security

@@ -1,0 +1,63 @@
+[submodule "account-lookup"]
+	path = account-lookup
+	url = https://github.com/burnt-labs/xion-account-lookup.git
+[submodule "assets"]
+	path = assets
+	url = https://github.com/burnt-labs/xion-assets-worker.git
+[submodule "authz-viewer"]
+	path = authz-viewer
+	url = https://github.com/burnt-labs/xion-authz-viewer.git
+[submodule "bluecheck"]
+	path = bluecheck
+	url = https://github.com/burnt-labs/blue-check.git
+[submodule "coming-soon"]
+	path = coming-soon
+	url = https://github.com/burnt-labs/coming-soon.git
+[submodule "crossmint-frontend"]
+	path = crossmint-frontend
+	url = https://github.com/burnt-labs/nextjs-xion-abstraxion-examples.git
+[submodule "crossmint-mobile"]
+	path = crossmint-mobile
+	url = https://github.com/burnt-labs/xion-crossmint-mobile-app.git
+[submodule "dapp-example"]
+	path = dapp-example
+	url = https://github.com/burnt-labs/dapp-example.git
+[submodule "dashboard"]
+	path = dashboard
+	url = https://github.com/burnt-labs/abstraxion-dashboard.git
+[submodule "deployed-contract-listings"]
+	path = deployed-contract-listings
+	url = https://github.com/burnt-labs/xion-deployed-contracts.git
+[submodule "developer-portal"]
+	path = developer-portal
+	url = https://github.com/burnt-labs/xion-developer-portal.git
+[submodule "explorer"]
+	path = explorer
+	url = https://github.com/burnt-labs/ping.pub.git
+[submodule "expo-demo"]
+	path = expo-demo
+	url = https://github.com/burnt-labs/abstraxion-expo-demo.git
+[submodule "faucet"]
+	path = faucet
+	url = https://github.com/burnt-labs/xion-faucet.git
+[submodule "kaito-dashboard"]
+	path = kaito-dashboard
+	url = https://github.com/burnt-labs/kaito-dashboard.git
+[submodule "mainnet-stats"]
+	path = mainnet-stats
+	url = https://github.com/burnt-labs/xion-launch-dashboard.git
+[submodule "quickstart-frontend"]
+	path = quickstart-frontend
+	url = https://github.com/burnt-labs/dev-quick-start.git
+[submodule "reclaim-demo"]
+	path = reclaim-demo
+	url = https://github.com/burnt-labs/abstraxion-reclaim-demo.git
+[submodule "staking"]
+	path = staking
+	url = https://github.com/burnt-labs/xion-staking.git
+[submodule "voucher-verify-demo"]
+	path = voucher-verify-demo
+	url = https://github.com/burnt-labs/voucher-verify.git
+[submodule "xion.js"]
+	path = xion.js
+	url = https://github.com/burnt-labs/xion.js.git

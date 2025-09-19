@@ -1,0 +1,306 @@
+name: Independent Submodule Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options:
+          - account-lookup
+          - assets
+          - authz-viewer
+          - bluecheck
+          - coming-soon
+          - crossmint-frontend
+          - crossmint-mobile
+          - dapp-example
+          - dashboard
+          - deployed-contract-listings
+          - developer-portal
+          - explorer
+          - expo-demo
+          - faucet
+          - kaito-dashboard
+          - mainnet-stats
+          - quickstart-frontend
+          - reclaim-demo
+          - staking
+          - voucher-verify-demo
+          - xion.js
+      version:
+        description: 'Version tag to deploy'
+        required: true
+        type: string
+      force_deploy:
+        description: 'Force deployment even if quality gates fail'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  SERVICE: ${{ inputs.service }}
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  validate-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      can_deploy: ${{ steps.quality-gates.outputs.can_deploy }}
+      current_version: ${{ steps.current-version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get current version
+        id: current-version
+        run: |
+          cd "${{ inputs.service }}"
+          CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Validate target version exists
+        run: |
+          cd "${{ inputs.service }}"
+          git fetch --tags
+          if ! git tag -l "${{ inputs.version }}" | grep -q "^${{ inputs.version }}$"; then
+            echo "❌ Version ${{ inputs.version }} does not exist in ${{ inputs.service }}"
+            exit 1
+          fi
+          echo "✅ Version ${{ inputs.version }} exists"
+
+      - name: Run quality gates
+        id: quality-gates
+        run: |
+          echo "🚦 Running quality gates for ${{ inputs.service }}"
+
+          # Run production validation
+          npm run production:gates "${{ inputs.service }}" || QUALITY_FAILED=true
+
+          if [ "$QUALITY_FAILED" = "true" ]; then
+            echo "can_deploy=false" >> $GITHUB_OUTPUT
+            echo "❌ Quality gates failed for ${{ inputs.service }}"
+          else
+            echo "can_deploy=true" >> $GITHUB_OUTPUT
+            echo "✅ Quality gates passed for ${{ inputs.service }}"
+          fi
+
+  compatibility-check:
+    needs: validate-deployment
+    runs-on: ubuntu-latest
+    outputs:
+      compatibility_passed: ${{ steps.compatibility.outputs.passed }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check API compatibility
+        id: compatibility
+        run: |
+          echo "🔍 Checking API compatibility for ${{ inputs.service }}"
+
+          # Run contract validation
+          npm run production:contracts "${{ inputs.service }}" || COMPAT_FAILED=true
+
+          if [ "$COMPAT_FAILED" = "true" ]; then
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "❌ Compatibility check failed"
+          else
+            echo "passed=true" >> $GITHUB_OUTPUT
+            echo "✅ Compatibility check passed"
+          fi
+
+  create-deployment:
+    needs: [validate-deployment, compatibility-check]
+    if: needs.validate-deployment.outputs.can_deploy == 'true' && (needs.compatibility-check.outputs.compatibility_passed == 'true' || inputs.force_deploy == true)
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.service }}-production
+      url: https://${{ inputs.service }}.burnt.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Update submodule to target version
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+
+          echo "🔄 Updating $SERVICE to $VERSION"
+
+          cd "$SERVICE"
+          git fetch --tags
+          git checkout "$VERSION"
+
+          # Verify we're on the correct version
+          COMMIT=$(git rev-parse HEAD)
+          echo "Updated $SERVICE to commit: $COMMIT"
+
+          cd ..
+
+          # Update the parent repo
+          git add "$SERVICE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "deploy: update $SERVICE to $VERSION
+
+          Service: $SERVICE
+          Version: $VERSION
+          Commit: $COMMIT
+          Previous: ${{ needs.validate-deployment.outputs.current_version }}
+          Triggered by: ${{ github.actor }}
+          Workflow: ${{ github.workflow }}
+          Run: ${{ github.run_number }}"
+
+          git push
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy to Cloudflare Workers
+        working-directory: ${{ inputs.service }}
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+
+          echo "🚀 Deploying $SERVICE version $VERSION to Cloudflare Workers"
+
+          # Install dependencies if needed
+          if [ -f "package.json" ]; then
+            npm ci
+          fi
+
+          # Deploy to Cloudflare Workers
+          npx wrangler deploy --env production
+
+          echo "✅ Successfully deployed $SERVICE to Cloudflare Workers"
+          echo "Service: $SERVICE"
+          echo "Version: $VERSION"
+          echo "Platform: Cloudflare Workers"
+
+      - name: Create deployment record
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+
+          # Create deployment record
+          cat > deployment-record.json << EOF
+          {
+            "service": "$SERVICE",
+            "version": "$VERSION",
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "deployed_by": "${{ github.actor }}",
+            "workflow_run": "${{ github.run_number }}",
+            "commit": "$(cd $SERVICE && git rev-parse HEAD)",
+            "environment": "production",
+            "platform": "cloudflare-workers"
+          }
+          EOF
+
+          echo "📋 Deployment record:"
+          cat deployment-record.json
+
+  verify-deployment:
+    needs: [validate-deployment, create-deployment]
+    if: always() && needs.create-deployment.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Health check
+        run: |
+          SERVICE="${{ inputs.service }}"
+
+          echo "🏥 Running post-deployment health check for $SERVICE"
+
+          # Wait for Cloudflare Workers deployment to propagate
+          sleep 45
+
+          # Health check Cloudflare Workers endpoint
+          WORKER_URL="https://$SERVICE.burnt.workers.dev"
+          echo "Checking health at: $WORKER_URL"
+
+          # Try health endpoint first, fallback to root
+          curl -f "$WORKER_URL/health" || curl -f "$WORKER_URL/" || exit 1
+
+          echo "✅ $SERVICE is healthy after deployment"
+
+      - name: Update status
+        run: |
+          echo "🎉 Deployment of ${{ inputs.service }} v${{ inputs.version }} completed successfully"
+          echo "🔗 Service URL: https://${{ inputs.service }}.burnt.workers.dev"
+
+  rollback-on-failure:
+    needs: [validate-deployment, create-deployment, verify-deployment]
+    if: always() && (needs.create-deployment.result == 'failure' || needs.verify-deployment.result == 'failure')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rollback deployment
+        run: |
+          SERVICE="${{ inputs.service }}"
+          PREVIOUS_VERSION="${{ needs.validate-deployment.outputs.current_version }}"
+
+          echo "🔄 Rolling back $SERVICE to previous version: $PREVIOUS_VERSION"
+
+          if [ "$PREVIOUS_VERSION" != "none" ]; then
+            cd "$SERVICE"
+            git checkout "$PREVIOUS_VERSION"
+            cd ..
+
+            git add "$SERVICE"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "rollback: revert $SERVICE to $PREVIOUS_VERSION
+
+            Failed deployment of: ${{ inputs.version }}
+            Rolled back to: $PREVIOUS_VERSION
+            Triggered by: ${{ github.actor }}
+            Workflow: ${{ github.workflow }}"
+
+            git push
+
+            echo "✅ Rolled back $SERVICE to $PREVIOUS_VERSION"
+          else
+            echo "⚠️ No previous version available for rollback"
+          fi

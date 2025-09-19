@@ -1,30 +1,48 @@
 {
-  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+  "$schema": "https://unpkg.com/@changesets/config@3.0.3/schema.json",
   "changelog": [
     "@changesets/changelog-github",
     {
-      "repo": "burnt-labs/xion-apps",
-      "includePrereleases": true
+      "repo": "burnt-labs/xion-apps"
     }
   ],
   "commit": false,
   "fixed": [],
   "linked": [
-    ["@burnt-labs/abstraxion-*"],
-    ["@burnt-labs/xion-*"]
+    [
+      "account-lookup",
+      "assets",
+      "authz-viewer",
+      "bluecheck",
+      "coming-soon",
+      "crossmint-frontend",
+      "crossmint-mobile",
+      "dapp-example",
+      "dashboard",
+      "deployed-contract-listings",
+      "developer-portal",
+      "explorer",
+      "expo-demo",
+      "faucet",
+      "kaito-dashboard",
+      "mainnet-stats",
+      "quickstart-frontend",
+      "reclaim-demo",
+      "staking",
+      "voucher-verify-demo",
+      "xion.js"
+    ]
   ],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@burnt-labs/chrge"
-  ],
+  "ignore": [],
   "snapshot": {
     "useCalculatedVersion": true,
     "prereleaseTemplate": "snapshot-{commit}"
   },
   "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
     "onlyUpdatePeerDependentsWhenOutOfRange": true,
-    "useCalculatedVersionForSnapshots": true
+    "updateInternalDependents": "always"
   }
 }
