@@ -1,4 +1,0 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-echo '🏷️  Replicating tag to all submodules...' && node scripts/replicate-tags.js $TAG_NAME

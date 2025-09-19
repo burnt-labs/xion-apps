@@ -1,4 +1,0 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-echo '🔄 Updating submodules after rewrite...' && git submodule update --init --recursive --jobs=4
