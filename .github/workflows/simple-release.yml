@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      update_submodules:
+        description: 'Update all submodules before release'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Update submodules
+        if: inputs.update_submodules == true
+        run: npm run automate update --auto-fix
+
+      - name: Create release
+        run: npm run automate release ${{ inputs.version }} --auto-fix
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.version }}
+          release_name: Release ${{ inputs.version }}
+          body: |
+            # Release ${{ inputs.version }}
+
+            ## 📦 Submodule Updates
+            This release includes the latest versions of all submodules.
+
+            ## 🏷️ Submodule Versions
+            $(git submodule status | while read line; do
+              commit=$(echo $line | cut -c2-9)
+              module=$(echo $line | awk '{print $2}')
+              echo "- **$module:** \`$commit\`"
+            done)
+
+            ## 🚀 Installation
+            ```bash
+            git clone https://github.com/${{ github.repository }}.git
+            cd $(basename ${{ github.repository }})
+            git checkout ${{ inputs.version }}
+            npm install
+            ```
+
+            ---
+            *This release was created automatically*
+          draft: false
+          prerelease: false

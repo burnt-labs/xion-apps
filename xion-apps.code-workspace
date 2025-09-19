@@ -1,0 +1,272 @@
+{
+  "folders": [
+    {
+      "name": "🏠 ROOT",
+      "path": "./"
+    },
+    {
+      "name": "📦 account-lookup",
+      "path": "./account-lookup"
+    },
+    {
+      "name": "🎨 assets",
+      "path": "./assets"
+    },
+    {
+      "name": "🔐 authz-viewer",
+      "path": "./authz-viewer"
+    },
+    {
+      "name": "✅ bluecheck",
+      "path": "./bluecheck"
+    },
+    {
+      "name": "🔜 coming-soon",
+      "path": "./coming-soon"
+    },
+    {
+      "name": "💳 crossmint-frontend",
+      "path": "./crossmint-frontend"
+    },
+    {
+      "name": "📱 crossmint-mobile",
+      "path": "./crossmint-mobile"
+    },
+    {
+      "name": "🏗️ dapp-example",
+      "path": "./dapp-example"
+    },
+    {
+      "name": "📊 dashboard",
+      "path": "./dashboard"
+    },
+    {
+      "name": "📋 deployed-contract-listings",
+      "path": "./deployed-contract-listings"
+    },
+    {
+      "name": "👨‍💻 developer-portal",
+      "path": "./developer-portal"
+    },
+    {
+      "name": "🔍 explorer",
+      "path": "./explorer"
+    },
+    {
+      "name": "📱 expo-demo",
+      "path": "./expo-demo"
+    },
+    {
+      "name": "🚿 faucet",
+      "path": "./faucet"
+    },
+    {
+      "name": "📈 kaito-dashboard",
+      "path": "./kaito-dashboard"
+    },
+    {
+      "name": "📊 mainnet-stats",
+      "path": "./mainnet-stats"
+    },
+    {
+      "name": "⚡ quickstart-frontend",
+      "path": "./quickstart-frontend"
+    },
+    {
+      "name": "🔒 reclaim-demo",
+      "path": "./reclaim-demo"
+    },
+    {
+      "name": "🥩 staking",
+      "path": "./staking"
+    },
+    {
+      "name": "🎫 voucher-verify-demo",
+      "path": "./voucher-verify-demo"
+    },
+    {
+      "name": "🌐 xion.js",
+      "path": "./xion.js"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.next": true,
+      "**/build": true,
+      "**/.turbo": true,
+      "**/.pnpm-store": true,
+      "**/coverage": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.next": true,
+      "**/build": true,
+      "**/.turbo": true,
+      "**/pnpm-lock.yaml": true,
+      "**/yarn.lock": true,
+      "**/package-lock.json": true
+    },
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true,
+    "typescript.suggest.autoImports": true,
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "eslint.packageManager": "pnpm",
+    "eslint.workingDirectories": [
+      "account-lookup",
+      "authz-viewer",
+      "bluecheck",
+      "coming-soon",
+      "crossmint-frontend",
+      "crossmint-mobile",
+      "dapp-example",
+      "dashboard",
+      "developer-portal",
+      "explorer",
+      "expo-demo",
+      "faucet",
+      "kaito-dashboard",
+      "mainnet-stats",
+      "quickstart-frontend",
+      "reclaim-demo",
+      "staking",
+      "voucher-verify-demo",
+      "xion.js"
+    ],
+    "npm.packageManager": "pnpm",
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.organizeImports": "explicit"
+    },
+    "git.ignoreLimitWarning": true,
+    "git.autofetch": true,
+    "git.enableSmartCommit": true,
+    "git.confirmSync": false,
+    "gitlens.defaultDateFormat": "YYYY-MM-DD HH:mm",
+    "gitlens.defaultDateShortFormat": "MMM DD",
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+      "*.ts": "${capture}.js, ${capture}.d.ts",
+      "*.js": "${capture}.js.map",
+      "package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock, .npmrc",
+      "tsconfig.json": "tsconfig.*.json",
+      ".env": ".env.*",
+      "README.md": "CHANGELOG.md, LICENSE, .gitignore"
+    },
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "workbench.colorCustomizations": {
+      "tab.activeBorder": "#007acc",
+      "activityBar.activeBackground": "#007acc33"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "ms-vscode.vscode-typescript-next",
+      "eamodio.gitlens",
+      "streetsidesoftware.code-spell-checker",
+      "bradlc.vscode-tailwindcss",
+      "formulahendry.auto-rename-tag",
+      "christian-kohler.path-intellisense",
+      "ms-vscode.vscode-json",
+      "redhat.vscode-yaml",
+      "ms-vscode.powershell",
+      "ms-vscode-remote.remote-containers",
+      "github.copilot",
+      "github.copilot-chat",
+      "ms-vscode.vscode-github-issue-notebooks",
+      "github.vscode-pull-request-github"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Install Dependencies",
+        "type": "shell",
+        "command": "pnpm install",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Build All",
+        "type": "shell",
+        "command": "npm run workspace:build",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": ["$tsc"]
+      },
+      {
+        "label": "Update Submodules",
+        "type": "shell",
+        "command": "npm run update",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Health Check",
+        "type": "shell",
+        "command": "npm run health",
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Daily Maintenance",
+        "type": "shell",
+        "command": "npm run daily",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Current TypeScript File",
+        "type": "node",
+        "request": "launch",
+        "program": "${file}",
+        "runtimeArgs": ["-r", "ts-node/register"],
+        "env": {
+          "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+[submodule "xion.js"]
+	path = xion.js
+	url = https://github.com/burnt-labs/xion.js
+[submodule "assets"]
+	path = assets
+	url = https://github.com/burnt-labs/xion-assets
+[submodule "dashboard"]
+	path = dashboard
+	url = https://github.com/burnt-labs/xion-dashboard-app
+[submodule "crossmint-mobile"]
+	path = crossmint-mobile
+	url = https://github.com/burnt-labs/xion-crossmint-mobile-app
+[submodule "deployed-contract-listings"]
+	path = deployed-contract-listings
+	url = https://github.com/burnt-labs/deployed-contract-listings
+[submodule "mainnet-stats"]
+	path = mainnet-stats
+	url = https://github.com/burnt-labs/xion-mainnet-stats
+[submodule "developer-portal"]
+	path = developer-portal
+	url = https://github.com/burnt-labs/xion-developer-portal
+[submodule "quickstart-frontend"]
+	path = quickstart-frontend
+	url = https://github.com/burnt-labs/quickstart-frontend
+[submodule "staking"]
+	path = staking
+	url = https://github.com/burnt-labs/xion-staking
+[submodule "bluecheck"]
+	path = bluecheck
+	url = https://github.com/burnt-labs/BlueCheck
+[submodule "voucher-verify-demo"]
+	path = voucher-verify-demo
+	url = https://github.com/burnt-labs/voucher-verify-demo
+[submodule "account-lookup"]
+	path = account-lookup
+	url = https://github.com/burnt-labs/xion-account-lookup-dashboard
+[submodule "authz-viewer"]
+	path = authz-viewer
+	url = https://github.com/burnt-labs/xion-authz-viewer
+[submodule "explorer"]
+	path = explorer
+	url = https://github.com/burnt-labs/xion-explorer
+[submodule "faucet"]
+	path = faucet
+	url = https://github.com/burnt-labs/xion-faucet
+[submodule "crossmint-frontend"]
+	path = crossmint-frontend
+	url = https://github.com/burnt-labs/xion-crossmint-hosted-checkout-frontend
+[submodule "reclaim-demo"]
+	path = reclaim-demo
+	url = https://github.com/burnt-labs/abstraxion-reclaim-demo
+[submodule "kaito-dashboard"]
+	path = kaito-dashboard
+	url = https://github.com/burnt-labs/kaito-dashboard
+[submodule "expo-demo"]
+	path = expo-demo
+	url = https://github.com/burnt-labs/abstraxion-expo-demo
+[submodule "coming-soon"]
+	path = coming-soon
+	url = https://github.com/burnt-labs/coming-soon
+[submodule "dapp-example"]
+	path = dapp-example
+	url = https://github.com/burnt-labs/xion-dapp-example

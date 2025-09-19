@@ -1,11 +1,30 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
-  "changelog": ["@changesets/changelog-github", {"repo": "burnt-labs/xion.js"}],
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "burnt-labs/xion-apps",
+      "includePrereleases": true
+    }
+  ],
   "commit": false,
   "fixed": [],
-  "linked": [],
+  "linked": [
+    ["@burnt-labs/abstraxion-*"],
+    ["@burnt-labs/xion-*"]
+  ],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [
+    "@burnt-labs/chrge"
+  ],
+  "snapshot": {
+    "useCalculatedVersion": true,
+    "prereleaseTemplate": "snapshot-{commit}"
+  },
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true,
+    "useCalculatedVersionForSnapshots": true
+  }
 }

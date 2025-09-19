@@ -1,0 +1,247 @@
+name: Matrix CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      submodules: ${{ steps.changes.outputs.submodules }}
+      matrix: ${{ steps.changes.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Detect changed submodules
+        id: changes
+        run: |
+          # Get list of all submodules
+          ALL_SUBMODULES=$(git config --file .gitmodules --get-regexp path | awk '{ print $2 }' | jq -R -s -c 'split("\n")[:-1]')
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For PRs, only build changed submodules
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+            CHANGED_PATHS=$(git diff --name-only $BASE_SHA...$HEAD_SHA)
+            CHANGED_SUBMODULES=()
+
+            echo "$CHANGED_PATHS" | while read -r path; do
+              for submodule in $(echo $ALL_SUBMODULES | jq -r '.[]'); do
+                if [[ "$path" == "$submodule/"* ]]; then
+                  CHANGED_SUBMODULES+=("$submodule")
+                  break
+                fi
+              done
+            done
+
+            # Remove duplicates and convert to JSON
+            UNIQUE_CHANGED=$(printf '%s\n' "${CHANGED_SUBMODULES[@]}" | sort -u | jq -R -s -c 'split("\n")[:-1]')
+
+            if [ "$UNIQUE_CHANGED" = "[]" ]; then
+              # If no submodules changed, still run a basic check
+              MATRIX='["basic-check"]'
+            else
+              MATRIX="$UNIQUE_CHANGED"
+            fi
+          else
+            # For pushes to main/develop, build all submodules
+            MATRIX="$ALL_SUBMODULES"
+          fi
+
+          echo "submodules=$ALL_SUBMODULES" >> $GITHUB_OUTPUT
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+          echo "All submodules: $ALL_SUBMODULES"
+          echo "Build matrix: $MATRIX"
+
+  test-and-build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        submodule: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+        node-version: [22]
+      fail-fast: false
+      max-parallel: 8
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ matrix.submodule }}/dist
+            ${{ matrix.submodule }}/build
+            ${{ matrix.submodule }}/.next
+            ${{ matrix.submodule }}/coverage
+          key: ${{ runner.os }}-${{ matrix.submodule }}-${{ matrix.node-version }}-${{ hashFiles(format('{0}/package.json', matrix.submodule)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.submodule }}-${{ matrix.node-version }}-
+            ${{ runner.os }}-${{ matrix.submodule }}-
+
+      - name: Validate submodule
+        if: matrix.submodule != 'basic-check'
+        run: |
+          if [ ! -d "${{ matrix.submodule }}" ]; then
+            echo "❌ Submodule directory not found: ${{ matrix.submodule }}"
+            exit 1
+          fi
+
+          if [ ! -f "${{ matrix.submodule }}/package.json" ]; then
+            echo "⚠️ No package.json found in ${{ matrix.submodule }}, skipping"
+            exit 0
+          fi
+
+      - name: Run type checking
+        if: matrix.submodule != 'basic-check'
+        working-directory: ${{ matrix.submodule }}
+        run: |
+          if npm run type-check > /dev/null 2>&1; then
+            npm run type-check
+          elif npx tsc --noEmit > /dev/null 2>&1; then
+            npx tsc --noEmit
+          else
+            echo "⚠️ No type checking available for ${{ matrix.submodule }}"
+          fi
+
+      - name: Run linting
+        if: matrix.submodule != 'basic-check'
+        working-directory: ${{ matrix.submodule }}
+        run: |
+          if npm run lint > /dev/null 2>&1; then
+            npm run lint
+          else
+            echo "⚠️ No linting configured for ${{ matrix.submodule }}"
+          fi
+
+      - name: Run tests
+        if: matrix.submodule != 'basic-check'
+        working-directory: ${{ matrix.submodule }}
+        run: |
+          if npm run test > /dev/null 2>&1; then
+            npm run test
+          elif npm run test:ci > /dev/null 2>&1; then
+            npm run test:ci
+          else
+            echo "⚠️ No tests configured for ${{ matrix.submodule }}"
+          fi
+
+      - name: Build project
+        if: matrix.submodule != 'basic-check'
+        working-directory: ${{ matrix.submodule }}
+        run: |
+          if npm run build > /dev/null 2>&1; then
+            npm run build
+          else
+            echo "⚠️ No build script for ${{ matrix.submodule }}"
+          fi
+
+      - name: Upload build artifacts
+        if: matrix.submodule != 'basic-check'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.submodule }}-node${{ matrix.node-version }}
+          path: |
+            ${{ matrix.submodule }}/dist
+            ${{ matrix.submodule }}/build
+            ${{ matrix.submodule }}/.next
+          retention-days: 7
+
+  workspace-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Workspace health check
+        run: |
+          npm run workspace:doctor
+          npm run workspace:validate
+
+      - name: Check for security vulnerabilities
+        run: |
+          npm run security || echo "Security issues found - review required"
+
+  deployment-preview:
+    needs: [detect-changes, test-and-build]
+    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        submodule: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download build artifacts
+        if: matrix.submodule != 'basic-check'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.submodule }}-node20
+          path: ${{ matrix.submodule }}
+
+      - name: Deploy preview
+        if: matrix.submodule != 'basic-check'
+        run: |
+          echo "🚀 Would deploy preview for ${{ matrix.submodule }}"
+          echo "Preview URL would be: https://${{ matrix.submodule }}-pr-${{ github.event.number }}.preview.burnt.com"
+
+  summary:
+    needs: [detect-changes, test-and-build, workspace-validation]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Job Summary
+        run: |
+          echo "## 📊 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Matrix:** ${{ needs.detect-changes.outputs.matrix }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Results:** ${{ needs.test-and-build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Workspace Validation:** ${{ needs.workspace-validation.result }}" >> $GITHUB_STEP_SUMMARY

@@ -1,7 +1,46 @@
 {
   "name": "@burnt-labs/xion-apps",
   "private": true,
-  "scripts": {},
+  "scripts": {
+    "setup": "npm run setup:hooks && npm run setup:submodules",
+    "setup:hooks": "husky install",
+    "setup:submodules": "git submodule update --init --recursive --jobs=8 --progress",
+    "submodules:status": "git submodule status",
+    "submodules:update": "git submodule update --recursive --jobs=8",
+    "submodules:pull": "git submodule foreach \"git pull origin $(git rev-parse --abbrev-ref HEAD) || git pull origin main || git pull origin master\"",
+    "submodules:sync": "git submodule sync --recursive && npm run submodules:update",
+    "submodules:update-all": "node scripts/update-submodules.js",
+    "submodules:add": "node scripts/add-submodule.js",
+    "submodules:remove": "node scripts/remove-submodule.js",
+    "tags:replicate": "node scripts/replicate-tags.js",
+    "tags:list": "git tag --list",
+    "release": "node scripts/create-release.js",
+    "branches:sync": "node scripts/sync-main-branches.js",
+    "branches:update": "node scripts/update-mirror-branches.js",
+    "branches:list": "git branch --list \"*/main\" \"*/master\"",
+    "branches:clean": "git branch | grep -E \"(.*/(main|master))$\" | xargs -r git branch -D",
+    "workspace:doctor": "node scripts/workspace-doctor.js",
+    "workspace:validate": "node scripts/validate-deployments.js",
+    "workspace:install": "npm install --workspaces",
+    "workspace:build": "npm run build --workspaces --if-present",
+    "workspace:test": "npm run test --workspaces --if-present",
+    "workspace:lint": "npm run lint --workspaces --if-present",
+    "automate": "node scripts/automation.js",
+    "daily": "npm run automate daily",
+    "update": "npm run automate update",
+    "security": "npm run automate security",
+    "health": "npm run automate health",
+    "production:health": "node scripts/submodule-health.js",
+    "production:contracts": "node scripts/contract-validator.js",
+    "production:gates": "node scripts/quality-gates.js",
+    "production:update": "node scripts/safe-update.js",
+    "production:validate": "npm run production:health && npm run production:contracts && npm run production:gates",
+    "production:deploy-check": "npm run production:validate",
+    "direnv:setup": "node scripts/setup-direnv.js",
+    "direnv:allow": "direnv allow .",
+    "setup:env": "npm run direnv:setup && npm run direnv:allow",
+    "prepare": "husky install"
+  },
   "packageManager": "pnpm@8.9.0",
   "dependencies": {
     "@changesets/changelog-github": "^0.5.0",
@@ -9,6 +48,45 @@
     "eslint": "^8.48.0",
     "prettier": "^3.0.3",
     "prettier-plugin-tailwindcss": "^0.5.3"
+  },
+  "devDependencies": {
+    "husky": "^8.0.3",
+    "lint-staged": "^16.1.6"
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx}": [
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "workspaces": [
+    "account-lookup",
+    "assets",
+    "authz-viewer",
+    "bluecheck",
+    "coming-soon",
+    "crossmint-frontend",
+    "crossmint-mobile",
+    "dapp-example",
+    "dashboard",
+    "deployed-contract-listings",
+    "developer-portal",
+    "explorer",
+    "expo-demo",
+    "faucet",
+    "kaito-dashboard",
+    "mainnet-stats",
+    "quickstart-frontend",
+    "reclaim-demo",
+    "staking",
+    "voucher-verify-demo",
+    "xion.js",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
   },
   "pnpm": {
     "overrides": {

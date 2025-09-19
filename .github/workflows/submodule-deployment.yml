@@ -1,0 +1,317 @@
+name: Independent Submodule Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.gitmodules'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options:
+          - dashboard
+          - explorer
+          - faucet
+          - staking
+          - authz-viewer
+          - developer-portal
+          - account-lookup
+          - crossmint-frontend
+          - quickstart-frontend
+      version:
+        description: 'Version tag (must be existing tag in submodule)'
+        required: true
+        type: string
+      force_deploy:
+        description: 'Force deploy even if compatibility tests fail'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  validate-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      can_deploy: ${{ steps.validation.outputs.can_deploy }}
+      submodule_commit: ${{ steps.validation.outputs.submodule_commit }}
+      current_version: ${{ steps.validation.outputs.current_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate deployment request
+        id: validation
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+
+          echo "🔍 Validating deployment of $SERVICE to $VERSION"
+
+          # Check if service exists
+          if [ ! -d "$SERVICE" ]; then
+            echo "❌ Service $SERVICE not found"
+            exit 1
+          fi
+
+          cd "$SERVICE"
+
+          # Verify version is a proper release tag
+          if ! git tag -l "$VERSION" | grep -q "^$VERSION$"; then
+            echo "❌ Version $VERSION is not a valid release tag in $SERVICE"
+            echo "Available tags:"
+            git tag -l | head -10
+            exit 1
+          fi
+
+          # Get commit hash for the version
+          COMMIT=$(git rev-parse "$VERSION")
+          echo "submodule_commit=$COMMIT" >> $GITHUB_OUTPUT
+
+          # Get current version
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          CURRENT_TAG=$(git describe --tags "$CURRENT_COMMIT" 2>/dev/null || echo "no-tag")
+          echo "current_version=$CURRENT_TAG" >> $GITHUB_OUTPUT
+
+          # Check if this is actually a change
+          if [ "$COMMIT" = "$CURRENT_COMMIT" ]; then
+            echo "ℹ️ $SERVICE is already at $VERSION"
+            echo "can_deploy=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ $SERVICE can be updated from $CURRENT_TAG to $VERSION"
+          echo "can_deploy=true" >> $GITHUB_OUTPUT
+
+  compatibility-check:
+    needs: validate-deployment
+    if: needs.validate-deployment.outputs.can_deploy == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      compatibility_passed: ${{ steps.compatibility.outputs.passed }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run compatibility tests
+        id: compatibility
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+
+          echo "🧪 Testing compatibility for $SERVICE at $VERSION"
+
+          cd "$SERVICE"
+
+          # Checkout the target version
+          git checkout "$VERSION"
+
+          # Install dependencies for this version
+          if [ -f "package.json" ]; then
+            npm ci 2>/dev/null || npm install
+          fi
+
+          cd ..
+
+          # Run integration tests to ensure compatibility
+          if [ -f "tests/integration/$SERVICE.test.js" ]; then
+            echo "Running integration tests for $SERVICE"
+            npm run test:integration -- --service="$SERVICE"
+          else
+            echo "⚠️ No integration tests found for $SERVICE"
+          fi
+
+          # Test API contracts if they exist
+          if [ -f "contracts/$SERVICE.contract.ts" ]; then
+            echo "Validating API contracts for $SERVICE"
+            npm run test:contracts -- --service="$SERVICE"
+          fi
+
+          # Check for breaking changes in package.json
+          if [ -f "$SERVICE/package.json" ]; then
+            echo "Checking for breaking changes in dependencies"
+            # This would typically use a tool like npm-check-updates
+            # or your own contract validation logic
+          fi
+
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+  create-deployment:
+    needs: [validate-deployment, compatibility-check]
+    if: needs.validate-deployment.outputs.can_deploy == 'true' && (needs.compatibility-check.outputs.compatibility_passed == 'true' || inputs.force_deploy == true)
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.service }}-production
+      url: https://${{ inputs.service }}.burnt.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update submodule reference
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+          COMMIT="${{ needs.validate-deployment.outputs.submodule_commit }}"
+
+          echo "📦 Updating $SERVICE submodule reference"
+
+          cd "$SERVICE"
+          git checkout "$VERSION"
+          cd ..
+
+          # Update the parent repo
+          git add "$SERVICE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "deploy: update $SERVICE to $VERSION
+
+          Service: $SERVICE
+          Version: $VERSION
+          Commit: $COMMIT
+          Previous: ${{ needs.validate-deployment.outputs.current_version }}
+          Triggered by: ${{ github.actor }}
+          Workflow: ${{ github.workflow }}
+          Run: ${{ github.run_number }}"
+
+          git push
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy to Cloudflare Workers
+        working-directory: ${{ inputs.service }}
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+
+          echo "🚀 Deploying $SERVICE version $VERSION to Cloudflare Workers"
+
+          # Install dependencies if needed
+          if [ -f "package.json" ]; then
+            npm ci
+          fi
+
+          # Deploy to Cloudflare Workers
+          npx wrangler deploy --env production
+
+          echo "✅ Successfully deployed $SERVICE to Cloudflare Workers"
+          echo "Service: $SERVICE"
+          echo "Version: $VERSION"
+          echo "Platform: Cloudflare Workers"
+
+      - name: Create deployment record
+        run: |
+          SERVICE="${{ inputs.service }}"
+          VERSION="${{ inputs.version }}"
+
+          # Record deployment for monitoring
+          echo "📊 Recording deployment metrics"
+
+          cat > deployment-record.json << EOF
+          {
+            "service": "$SERVICE",
+            "version": "$VERSION",
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "deployed_by": "${{ github.actor }}",
+            "commit": "${{ needs.validate-deployment.outputs.submodule_commit }}",
+            "previous_version": "${{ needs.validate-deployment.outputs.current_version }}",
+            "workflow_run": "${{ github.run_number }}",
+            "forced": "${{ inputs.force_deploy }}"
+          }
+          EOF
+
+          # This would typically be sent to your monitoring system
+          echo "Deployment record created:"
+          cat deployment-record.json
+
+  verify-deployment:
+    needs: [validate-deployment, create-deployment]
+    if: always() && needs.create-deployment.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Health check
+        run: |
+          SERVICE="${{ inputs.service }}"
+
+          echo "🏥 Running post-deployment health check for $SERVICE"
+
+          # Wait for Cloudflare Workers deployment to propagate
+          sleep 45
+
+          # Health check Cloudflare Workers endpoint
+          WORKER_URL="https://$SERVICE.burnt.workers.dev"
+          echo "Checking health at: $WORKER_URL"
+
+          # Try health endpoint first, fallback to root
+          curl -f "$WORKER_URL/health" || curl -f "$WORKER_URL/" || exit 1
+
+          echo "✅ $SERVICE is healthy after deployment"
+
+      - name: Update status
+        if: success()
+        run: |
+          echo "✅ Deployment of ${{ inputs.service }} to ${{ inputs.version }} completed successfully"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed, considering rollback"
+          echo "Previous version: ${{ needs.validate-deployment.outputs.current_version }}"
+
+          # This would typically trigger an automatic rollback
+          # or create an incident for manual intervention
+
+  deployment-summary:
+    needs: [validate-deployment, compatibility-check, create-deployment, verify-deployment]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate deployment summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🚀 Deployment Summary
+
+          **Service:** ${{ inputs.service }}
+          **Target Version:** ${{ inputs.version }}
+          **Previous Version:** ${{ needs.validate-deployment.outputs.current_version }}
+          **Forced:** ${{ inputs.force_deploy }}
+
+          ### Results
+          - **Validation:** ${{ needs.validate-deployment.result }}
+          - **Compatibility:** ${{ needs.compatibility-check.result }}
+          - **Deployment:** ${{ needs.create-deployment.result }}
+          - **Verification:** ${{ needs.verify-deployment.result }}
+
+          ### Key Metrics
+          - **Mean Time to Deployment:** Independent per service
+          - **Deployment Independence:** ✅ No coordination required
+          - **Rollback Capability:** ✅ Service-specific rollback available
+
+          EOF

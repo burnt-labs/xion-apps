@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo '🔄 Updating submodules after checkout...' && git submodule update --init --recursive --jobs=4
+
+# Update mirror branches if they exist
+if [ "$(git branch --list "*/main" "*/master" | wc -l)" -gt 0 ]; then
+  echo '🌿 Updating mirror branches...' && node scripts/update-mirror-branches.js
+fi
