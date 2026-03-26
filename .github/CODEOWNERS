@@ -2,56 +2,56 @@
 # Each line is a file pattern followed by one or more owners
 
 # Default owners for all files
-* @burnt-labs/Burnt_Engineering/Burnt_Frontend
+* @burnt-labs/burnt-frontend
 
 # Root configuration and infrastructure
-package.json @burnt-labs/Burnt_Engineering/Burnt_DevOps @burnt-labs/Burnt_Engineering/Burnt_Frontend
-package-lock.json @burnt-labs/Burnt_Engineering/Burnt_DevOps
-pnpm-workspace.yaml @burnt-labs/Burnt_Engineering/Burnt_DevOps
-.github/ @burnt-labs/Burnt_Engineering/Burnt_DevOps
-.husky/ @burnt-labs/Burnt_Engineering/Burnt_DevOps
-scripts/ @burnt-labs/Burnt_Engineering/Burnt_DevOps @burnt-labs/Burnt_Engineering/Burnt_Frontend
-.gitmodules @burnt-labs/Burnt_Engineering/Burnt_DevOps
-.envrc @burnt-labs/Burnt_Engineering/Burnt_DevOps
-*.code-workspace @burnt-labs/Burnt_Engineering/Burnt_DevOps
+package.json @burnt-labs/burnt-devops @burnt-labs/burnt-frontend
+package-lock.json @burnt-labs/burnt-devops
+pnpm-workspace.yaml @burnt-labs/burnt-devops
+.github/ @burnt-labs/burnt-devops
+.husky/ @burnt-labs/burnt-devops
+scripts/ @burnt-labs/burnt-devops @burnt-labs/burnt-frontend
+.gitmodules @burnt-labs/burnt-devops
+.envrc @burnt-labs/burnt-devops
+*.code-workspace @burnt-labs/burnt-devops
 
 # Security-sensitive files
 .github/workflows/security-*.yml @burnt-labs/security
 .github/workflows/*security* @burnt-labs/security
 scripts/*security* @burnt-labs/security
-scripts/quality-gates.js @burnt-labs/security @burnt-labs/Burnt_Engineering/Burnt_DevOps
+scripts/quality-gates.js @burnt-labs/security @burnt-labs/burnt-devops
 
 # Production deployment workflows
-.github/workflows/submodule-deployment.yml @burnt-labs/Burnt_Engineering/Burnt_DevOps @burnt-labs/security
-.github/workflows/matrix-ci.yml @burnt-labs/Burnt_Engineering/Burnt_DevOps
-scripts/production/ @burnt-labs/Burnt_Engineering/Burnt_DevOps @burnt-labs/security
+.github/workflows/submodule-deployment.yml @burnt-labs/burnt-devops @burnt-labs/security
+.github/workflows/matrix-ci.yml @burnt-labs/burnt-devops
+scripts/production/ @burnt-labs/burnt-devops @burnt-labs/security
 
 # Individual service ownership
-account-lookup/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-assets/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-authz-viewer/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-bluecheck/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-coming-soon/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-crossmint-frontend/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-crossmint-mobile/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-dapp-example/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-dashboard/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-deployed-contract-listings/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-developer-portal/ @burnt-labs/Burnt_Engineering/Burnt_DevRel
-explorer/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-expo-demo/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-faucet/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-kaito-dashboard/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-mainnet-stats/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-quickstart-frontend/ @burnt-labs/Burnt_Engineering/Burnt_DevRel
-reclaim-demo/ @burnt-labs/Burnt_Engineering/Burnt_ZeroKnowledge
-staking/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
-voucher-verify-demo/ @burnt-labs/Burnt_Engineering/Burnt_ZeroKnowledge
-xion.js/ @burnt-labs/Burnt_Engineering/Burnt_Frontend
+account-lookup/ @burnt-labs/burnt-frontend
+assets/ @burnt-labs/burnt-frontend
+authz-viewer/ @burnt-labs/burnt-frontend
+bluecheck/ @burnt-labs/burnt-frontend
+coming-soon/ @burnt-labs/burnt-frontend
+crossmint-frontend/ @burnt-labs/burnt-frontend
+crossmint-mobile/ @burnt-labs/burnt-frontend
+dapp-example/ @burnt-labs/burnt-frontend
+dashboard/ @burnt-labs/burnt-frontend
+deployed-contract-listings/ @burnt-labs/burnt-frontend
+developer-portal/ @burnt-labs/burnt-devrel
+explorer/ @burnt-labs/burnt-frontend
+expo-demo/ @burnt-labs/burnt-frontend
+faucet/ @burnt-labs/burnt-frontend
+kaito-dashboard/ @burnt-labs/burnt-frontend
+mainnet-stats/ @burnt-labs/burnt-frontend
+quickstart-frontend/ @burnt-labs/burnt-devrel
+reclaim-demo/ @burnt-labs/burnt-zk
+staking/ @burnt-labs/burnt-frontend
+voucher-verify-demo/ @burnt-labs/burnt-zk
+xion.js/ @burnt-labs/burnt-frontend
 
 # Documentation
-README.md @burnt-labs/Burnt_Engineering/Burnt_Frontend @burnt-labs/Burnt_Engineering/Burnt_DevOps
-*.md @burnt-labs/Burnt_Engineering/Burnt_Frontend
+README.md @burnt-labs/burnt-frontend @burnt-labs/burnt-devops
+*.md @burnt-labs/burnt-frontend
 
 # Security patterns that require security team review
 **/wrangler.toml @burnt-labs/security
