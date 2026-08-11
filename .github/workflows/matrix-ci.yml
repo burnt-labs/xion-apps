@@ -17,7 +17,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Detect changed submodules
         id: changes
@@ -31,44 +30,25 @@ jobs:
             HEAD_SHA="${{ github.sha }}"
           fi
 
-          echo "Checking changes between $BASE_SHA and $HEAD_SHA"
+          echo "Checking changes between ${BASE_SHA} and ${HEAD_SHA}"
 
-          # Get changed submodules
-          CHANGED_SERVICES=""
-
-          # Check if any submodule pointers changed
-          git diff --name-only $BASE_SHA...$HEAD_SHA | grep -E '^[^/]+$' | while read -r path; do
-            if [ -d "$path" ] && git submodule status | grep -q " $path "; then
-              echo "Changed submodule: $path"
-              if [ -z "$CHANGED_SERVICES" ]; then
-                CHANGED_SERVICES="$path"
-              else
-                CHANGED_SERVICES="$CHANGED_SERVICES,$path"
-              fi
-            fi
-          done
-
-          # Also check for changes within submodules
-          git submodule foreach --quiet 'if [ -n "$(git diff $SHA1..HEAD --name-only)" ]; then echo $sm_path; fi' | while read -r path; do
-            if [ -n "$path" ]; then
-              echo "Submodule with internal changes: $path"
-              if [ -z "$CHANGED_SERVICES" ]; then
-                CHANGED_SERVICES="$path"
-              else
-                CHANGED_SERVICES="$CHANGED_SERVICES,$path"
-              fi
-            fi
-          done
+          # A submodule change is represented by a changed gitlink in the
+          # superproject. Detect those pointers without cloning every
+          # submodule, since archived/private repositories make a recursive
+          # checkout fail before change detection can run.
+          CHANGED_SERVICES=$(git diff --raw "$BASE_SHA...$HEAD_SHA" \
+            | awk '($1 == ":160000" || $2 == "160000") { print $6 }' \
+            | sort -u)
 
           # Convert to JSON array for matrix
           if [ -n "$CHANGED_SERVICES" ]; then
-            SERVICES_JSON=$(echo "$CHANGED_SERVICES" | tr ',' '\n' | sort -u | jq -R -s -c 'split("\n")[:-1]')
-            echo "changed-services=$SERVICES_JSON" >> $GITHUB_OUTPUT
-            echo "has-changes=true" >> $GITHUB_OUTPUT
+            SERVICES_JSON=$(printf '%s\n' "$CHANGED_SERVICES" | jq -R -s -c 'split("\n")[:-1]')
+            echo "changed-services=$SERVICES_JSON" >> "$GITHUB_OUTPUT"
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
             echo "Changed services: $SERVICES_JSON"
           else
-            echo "changed-services=[]" >> $GITHUB_OUTPUT
-            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "changed-services=[]" >> "$GITHUB_OUTPUT"
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
             echo "No submodule changes detected"
           fi
 
@@ -83,14 +63,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Checkout changed submodule
+        run: git submodule update --init --recursive -- "${{ matrix.service }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "24.18.1"
+          cache: "npm"
 
       - name: Install root dependencies
         run: npm ci
@@ -165,13 +146,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Checkout changed submodule
+        run: git submodule update --init --recursive -- "${{ matrix.service }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "24.18.1"
 
       - name: Security audit for ${{ matrix.service }}
         working-directory: ${{ matrix.service }}
@@ -197,14 +179,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "24.18.1"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
